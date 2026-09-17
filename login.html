@@ -1,0 +1,828 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wolf Hub — Authentication Portal | Sign In & Register</title>
+
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Supabase JS Client v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Three.js for Background Ambient Atmosphere -->
+  <script src="three.min.js"></script>
+  <script>
+    if (typeof THREE === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+    }
+  </script>
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-dark: #06080a;
+      --amber-glow: #ff7f24;
+      --amber-bright: #ffa24a;
+      --amber-deep: #cc5200;
+      --frost-blue: #86b4d3;
+      --text-primary: #f0f4f8;
+      --text-secondary: #9badba;
+      --text-muted: #5e707e;
+      --font-display: 'Cormorant Garamond', Georgia, serif;
+      --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+      background-color: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* 3D Background Canvas */
+    #bg-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Vignette & Radial Glow */
+    .bg-vignette {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at 50% 40%, rgba(13, 19, 27, 0.75) 0%, rgba(4, 6, 9, 0.96) 100%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .ambient-glow-orb {
+      position: fixed;
+      width: 650px;
+      height: 650px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, rgba(255, 127, 36, 0.16) 0%, rgba(255, 127, 36, 0.03) 50%, transparent 75%);
+      filter: blur(60px);
+      z-index: 1;
+      pointer-events: none;
+      animation: pulseOrb 6s ease-in-out infinite;
+    }
+
+    @keyframes pulseOrb {
+      0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+      50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    }
+
+    /* Main Login / Register Container Card */
+    .auth-page-container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 520px;
+      padding: 24px;
+      margin: auto;
+    }
+
+    .auth-card {
+      background: rgba(14, 20, 27, 0.88);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1.5px solid rgba(255, 127, 36, 0.35);
+      border-radius: 28px;
+      padding: 42px 38px;
+      box-shadow: 
+        0 30px 80px rgba(0, 0, 0, 0.95),
+        0 0 50px rgba(255, 127, 36, 0.2);
+      transition: all 0.4s var(--ease-smooth);
+    }
+
+    /* Header & Branding */
+    .brand-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin-bottom: 26px;
+    }
+
+    .brand-icon-box {
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle, rgba(255, 127, 36, 0.28) 0%, transparent 70%);
+      border: 1.5px solid rgba(255, 127, 36, 0.55);
+      border-radius: 50%;
+      box-shadow: 0 0 20px rgba(255, 127, 36, 0.4);
+      margin-bottom: 12px;
+    }
+
+    .brand-icon-box svg {
+      width: 26px;
+      height: 26px;
+      fill: var(--amber-glow);
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #fff;
+      line-height: 1;
+    }
+
+    .brand-title span {
+      color: var(--amber-bright);
+      font-style: italic;
+      font-weight: 400;
+      margin-left: 2px;
+    }
+
+    .brand-badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--amber-bright);
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    .auth-lead {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      text-align: center;
+      line-height: 1.55;
+      margin-top: 10px;
+    }
+
+    /* Tabs Switcher */
+    .auth-tabs-wrapper {
+      display: flex;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 5px;
+      border-radius: 14px;
+      border: 1px solid rgba(134, 180, 211, 0.15);
+      margin-bottom: 24px;
+    }
+
+    .auth-tab-button {
+      flex: 1;
+      padding: 11px;
+      text-align: center;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      border-radius: 10px;
+      transition: all 0.3s var(--ease-smooth);
+    }
+
+    .auth-tab-button.active {
+      background: rgba(255, 127, 36, 0.22);
+      color: var(--amber-bright);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 127, 36, 0.4);
+    }
+
+    /* Form Fields */
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 7px;
+      font-weight: 600;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 13px 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(134, 180, 211, 0.22);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 0.95rem;
+      font-family: var(--font-body);
+      outline: none;
+      transition: all 0.25s ease;
+    }
+
+    .form-input:focus {
+      border-color: var(--amber-glow);
+      background: rgba(255, 127, 36, 0.06);
+      box-shadow: 0 0 16px rgba(255, 127, 36, 0.35);
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: 14px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.05rem;
+      padding: 4px;
+      transition: color 0.2s;
+    }
+
+    .toggle-password:hover {
+      color: var(--amber-bright);
+    }
+
+    .form-select {
+      width: 100%;
+      padding: 13px 18px;
+      background: #10161f;
+      border: 1px solid rgba(134, 180, 211, 0.22);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 0.95rem;
+      font-family: var(--font-body);
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Submit Button */
+    .submit-button {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--amber-glow), var(--amber-deep));
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 0.98rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      margin-top: 12px;
+      box-shadow: 0 6px 25px rgba(255, 127, 36, 0.45);
+      transition: all 0.3s var(--ease-smooth);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .submit-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(255, 127, 36, 0.65);
+      background: linear-gradient(135deg, #ffa043, #d95800);
+    }
+
+    .submit-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Alert Message Box */
+    .alert-box {
+      padding: 13px 16px;
+      border-radius: 12px;
+      font-size: 0.86rem;
+      line-height: 1.5;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .alert-box.error {
+      display: block;
+      background: rgba(255, 75, 75, 0.15);
+      border: 1px solid rgba(255, 75, 75, 0.4);
+      color: #ff9999;
+    }
+
+    .alert-box.success {
+      display: block;
+      background: rgba(75, 255, 150, 0.15);
+      border: 1px solid rgba(75, 255, 150, 0.4);
+      color: #99ffcc;
+    }
+
+    .alert-box.info {
+      display: block;
+      background: rgba(134, 180, 211, 0.15);
+      border: 1px solid rgba(134, 180, 211, 0.35);
+      color: var(--frost-blue);
+    }
+
+    /* Supabase Footer Badge */
+    .supabase-footer-pill {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(134, 180, 211, 0.12);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .supabase-footer-pill svg {
+      flex-shrink: 0;
+    }
+
+    .supabase-footer-pill strong {
+      color: #3ECF8E;
+    }
+
+    /* Demo Quick Credentials */
+    .demo-credentials-box {
+      margin-top: 20px;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px dashed rgba(255, 127, 36, 0.35);
+      border-radius: 12px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .demo-credentials-box strong {
+      color: var(--amber-bright);
+    }
+
+    .demo-btn-fill {
+      background: none;
+      border: none;
+      color: var(--frost-blue);
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0;
+      margin-top: 4px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 3D Canvas Background -->
+  <canvas id="bg-canvas"></canvas>
+  <div class="bg-vignette"></div>
+  <div class="ambient-glow-orb"></div>
+
+  <div class="auth-page-container">
+    <div class="auth-card">
+      
+      <!-- Brand Header -->
+      <div class="brand-header">
+        <div class="brand-icon-box">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 3L8 9L3 10L6 15L5 21L12 18L19 21L18 15L21 10L16 9L12 3Z"/>
+          </svg>
+        </div>
+        <h1 class="brand-title">Wolf<span>Hub</span></h1>
+        <span class="brand-badge">Canid Specialist & Research Network</span>
+        <p class="auth-lead">
+          Pehlay apna account <strong>Sign In</strong> karein ya <strong>Register</strong> karein taakay website access unlock ho sakay.
+        </p>
+      </div>
+
+      <!-- Tabs Switcher -->
+      <div class="auth-tabs-wrapper">
+        <button type="button" class="auth-tab-button active" id="tab-btn-signin" onclick="switchTab('signin')">Sign In</button>
+        <button type="button" class="auth-tab-button" id="tab-btn-signup" onclick="switchTab('signup')">Create Account</button>
+      </div>
+
+      <!-- Feedback Alert Box -->
+      <div id="auth-alert" class="alert-box"></div>
+
+      <!-- 1. SIGN IN FORM -->
+      <form id="form-signin" onsubmit="onSignInSubmit(event)">
+        <div class="form-group">
+          <label class="form-label" for="signin-identifier">Email or Username</label>
+          <div class="input-wrapper">
+            <input type="text" id="signin-identifier" class="form-input" placeholder="e.g. admin or ranger@wolfhub.org" required autocomplete="username">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="signin-password">Password</label>
+          <div class="input-wrapper">
+            <input type="password" id="signin-password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+            <button type="button" class="toggle-password" onclick="togglePass('signin-password', this)" title="Show/Hide Password">👁</button>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-signin-submit" class="submit-button">
+          <span class="btn-text">Sign In & Open Wolf Hub ➔</span>
+          <span class="btn-spinner" style="display:none;">⏳ Authenticating...</span>
+        </button>
+
+        <!-- Quick Demo Credentials Fill -->
+        <div class="demo-credentials-box">
+          <div>Verified Account: <strong>admin</strong> | Pass: <strong>AdminPassword2026!</strong></div>
+          <button type="button" class="demo-btn-fill" onclick="fillDemoAdmin()">Auto-fill Demo Admin Credentials</button>
+        </div>
+      </form>
+
+      <!-- 2. SIGN UP FORM -->
+      <form id="form-signup" style="display: none;" onsubmit="onSignUpSubmit(event)">
+        <div class="form-group">
+          <label class="form-label" for="signup-fullname">Full Name</label>
+          <div class="input-wrapper">
+            <input type="text" id="signup-fullname" class="form-input" placeholder="e.g. Elena Rostova" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="signup-email">Official Email Address</label>
+          <div class="input-wrapper">
+            <input type="email" id="signup-email" class="form-input" placeholder="elena@wolfhub.org" required autocomplete="email">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="signup-username">Username</label>
+          <div class="input-wrapper">
+            <input type="text" id="signup-username" class="form-input" placeholder="elena_canid" required autocomplete="username">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="signup-password">Secure Password (min. 6 chars)</label>
+          <div class="input-wrapper">
+            <input type="password" id="signup-password" class="form-input" placeholder="Create password" minlength="6" required autocomplete="new-password">
+            <button type="button" class="toggle-password" onclick="togglePass('signup-password', this)" title="Show/Hide Password">👁</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="signup-role">Field Specialization / Role</label>
+          <select id="signup-role" class="form-select">
+            <option value="Canid Specialist & Biologist">Canid Specialist & Biologist</option>
+            <option value="Protected Lands Park Ranger">Protected Lands Park Ranger</option>
+            <option value="Wildlife Field Photographer">Wildlife Field Photographer</option>
+            <option value="Apex Predator Researcher">Apex Predator Researcher</option>
+            <option value="Wilderness Enthusiast">Wilderness Enthusiast</option>
+          </select>
+        </div>
+
+        <button type="submit" id="btn-signup-submit" class="submit-button">
+          <span class="btn-text">Register With Supabase & Enter ➔</span>
+          <span class="btn-spinner" style="display:none;">⏳ Creating Account...</span>
+        </button>
+      </form>
+
+      <!-- Supabase Cloud Indicator -->
+      <div class="supabase-footer-pill">
+        <svg width="16" height="16" viewBox="0 0 109 113" fill="none">
+          <path d="M63.7 110.3c-2.3 3.1-7.2 1.5-7.3-2.4L55 64.9l46.7-1.4c4.1 0 6.2 4.9 3.4 7.9L63.7 110.3z" fill="#3ECF8E"/>
+          <path d="M45.5 2.7c2.3-3.1 7.2-1.5 7.3 2.4L54 48.1l-46.7 1.4c-4.1 0-6.2-4.9-3.4-7.9L45.5 2.7z" fill="#3ECF8E"/>
+        </svg>
+        <span>Connected & Secured by <strong>Supabase Cloud Auth</strong></span>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       SUPABASE CONFIGURATION & AUTH CLIENT
+       ========================================================================== */
+    const SUPABASE_CONFIG = {
+      url: 'https://qtdunbztzfvtmmjkmwux.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0ZHVuYnp0emZ2dG1tamttd3V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2MzM3NDUsImV4cCI6MjEwNTIwOTc0NX0.rq5s5spxzWwSOrXqdV215GQgVUF9tfvxx_c082wCbl0'
+    };
+
+    let sbClient = null;
+    if (window.supabase && window.supabase.createClient) {
+      sbClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    }
+
+    // Check if user is already authenticated -> redirect to website!
+    async function checkExistingSession() {
+      if (!sbClient && window.supabase) {
+        sbClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+      }
+      if (sbClient) {
+        try {
+          const { data: { session } } = await sbClient.auth.getSession();
+          if (session && session.user) {
+            showAlert('Aap pehlay se logged in hain! Website khul rahi hai...', 'info');
+            setTimeout(() => {
+              window.location.href = 'index.html';
+            }, 600);
+          }
+        } catch (e) {
+          console.warn('Session check note:', e);
+        }
+      }
+    }
+
+    // Tab switcher
+    function switchTab(tab) {
+      const btnIn = document.getElementById('tab-btn-signin');
+      const btnUp = document.getElementById('tab-btn-signup');
+      const formIn = document.getElementById('form-signin');
+      const formUp = document.getElementById('form-signup');
+      const alert = document.getElementById('auth-alert');
+
+      if (alert) alert.style.display = 'none';
+
+      if (tab === 'signin') {
+        btnIn.classList.add('active');
+        btnUp.classList.remove('active');
+        formIn.style.display = 'block';
+        formUp.style.display = 'none';
+      } else {
+        btnUp.classList.add('active');
+        btnIn.classList.remove('active');
+        formIn.style.display = 'none';
+        formUp.style.display = 'block';
+      }
+    }
+
+    function showAlert(msg, type = 'error') {
+      const box = document.getElementById('auth-alert');
+      if (!box) return;
+      box.className = `alert-box ${type}`;
+      box.innerHTML = msg;
+      box.style.display = 'block';
+    }
+
+    function togglePass(id, btn) {
+      const input = document.getElementById(id);
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🔒';
+      } else {
+        input.type = 'password';
+        btn.textContent = '👁';
+      }
+    }
+
+    function setBtnLoading(id, isLoading, defText, loadText) {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.disabled = isLoading;
+      const textSpan = btn.querySelector('.btn-text');
+      const spinSpan = btn.querySelector('.btn-spinner');
+      if (textSpan && spinSpan) {
+        textSpan.style.display = isLoading ? 'none' : 'inline';
+        spinSpan.style.display = isLoading ? 'inline-flex' : 'none';
+        spinSpan.textContent = loadText;
+      }
+    }
+
+    function fillDemoAdmin() {
+      document.getElementById('signin-identifier').value = 'admin';
+      document.getElementById('signin-password').value = 'AdminPassword2026!';
+    }
+
+    // Handle Sign In Submit
+    async function onSignInSubmit(e) {
+      e.preventDefault();
+
+      if (!sbClient && window.supabase) {
+        sbClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+      }
+      if (!sbClient) {
+        showAlert('Supabase initialize nahi ho saka. Barah-e-karam page refresh karein.', 'error');
+        return;
+      }
+
+      const identifier = document.getElementById('signin-identifier').value.trim();
+      const password = document.getElementById('signin-password').value;
+
+      if (!identifier || !password) {
+        showAlert('Barah-e-karam email/username aur password dono enter karein.', 'error');
+        return;
+      }
+
+      setBtnLoading('btn-signin-submit', true, 'Sign In & Open Wolf Hub ➔', '⏳ Authenticating...');
+
+      try {
+        let resolvedEmail = identifier;
+
+        // If username (does not contain @), resolve email from profiles
+        if (!identifier.includes('@')) {
+          try {
+            const { data: prof } = await sbClient
+              .from('profiles')
+              .select('email')
+              .eq('username', identifier)
+              .maybeSingle();
+
+            if (prof && prof.email) {
+              resolvedEmail = prof.email;
+            } else {
+              resolvedEmail = `${identifier}@wolfhub.org`;
+            }
+          } catch (ex) {
+            console.warn('Profile lookup:', ex);
+          }
+        }
+
+        const { data, error } = await sbClient.auth.signInWithPassword({
+          email: resolvedEmail,
+          password: password
+        });
+
+        if (error) {
+          let errText = error.message;
+          if (errText.includes('Invalid login credentials')) {
+            errText = 'Galat Email ya Password! Barah-e-karam credentials check karein.';
+          } else if (errText.includes('Email not confirmed')) {
+            errText = 'Email confirm nahi hua. Apnay email inbox main verification link check karein.';
+          }
+          showAlert(`⚠️ Login Failed: ${errText}`, 'error');
+          setBtnLoading('btn-signin-submit', false, 'Sign In & Open Wolf Hub ➔', '⏳ Authenticating...');
+          return;
+        }
+
+        if (data?.user) {
+          showAlert('✔ Supabase Login Kamiyab! Wolf Hub website khul rahi hai...', 'success');
+          setTimeout(() => {
+            window.location.href = 'index.html';
+          }, 800);
+        }
+      } catch (err) {
+        console.error('Sign In Error:', err);
+        showAlert(`Error: ${err.message || 'Server connection failed'}`, 'error');
+        setBtnLoading('btn-signin-submit', false, 'Sign In & Open Wolf Hub ➔', '⏳ Authenticating...');
+      }
+    }
+
+    // Handle Sign Up Submit
+    async function onSignUpSubmit(e) {
+      e.preventDefault();
+
+      if (!sbClient && window.supabase) {
+        sbClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+      }
+      if (!sbClient) {
+        showAlert('Supabase initialize nahi ho saka. Page refresh karein.', 'error');
+        return;
+      }
+
+      const fullName = document.getElementById('signup-fullname').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const username = document.getElementById('signup-username').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const role = document.getElementById('signup-role').value;
+
+      if (!fullName || !email || !username || !password) {
+        showAlert('Tamam fields bharna lazmi hain.', 'error');
+        return;
+      }
+
+      if (password.length < 6) {
+        showAlert('Password kam az kam 6 characters ka hona chahiye.', 'error');
+        return;
+      }
+
+      setBtnLoading('btn-signup-submit', true, 'Register With Supabase & Enter ➔', '⏳ Creating Account...');
+
+      try {
+        const { data, error } = await sbClient.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: {
+              full_name: fullName,
+              username: username,
+              role: role
+            }
+          }
+        });
+
+        if (error) {
+          let errText = error.message;
+          if (errText.includes('User already registered')) {
+            errText = 'Yeh email pehlay se registered hai. Barah-e-karam Sign In tab par jayein.';
+          }
+          showAlert(`⚠️ Registration Error: ${errText}`, 'error');
+          setBtnLoading('btn-signup-submit', false, 'Register With Supabase & Enter ➔', '⏳ Creating Account...');
+          return;
+        }
+
+        if (data?.session && data?.user) {
+          showAlert('🎉 Account ban gaya! Wolf Hub website khul rahi hai...', 'success');
+          setTimeout(() => {
+            window.location.href = 'index.html';
+          }, 800);
+        } else if (data?.user) {
+          showAlert(
+            `🎉 Account kamiyabi se ban gaya!<br><span style="font-size:0.84rem;color:#fff;">Ek confirmation link <strong>${email}</strong> par bheja gaya hai. Aap foran Sign In bhi kar saktay hain.</span>`,
+            'success'
+          );
+          setTimeout(() => {
+            switchTab('signin');
+            document.getElementById('signin-identifier').value = email;
+          }, 3500);
+          setBtnLoading('btn-signup-submit', false, 'Register With Supabase & Enter ➔', '⏳ Creating Account...');
+        }
+      } catch (err) {
+        console.error('Sign Up Error:', err);
+        showAlert(`Registration error: ${err.message}`, 'error');
+        setBtnLoading('btn-signup-submit', false, 'Register With Supabase & Enter ➔', '⏳ Creating Account...');
+      }
+    }
+
+    // Three.js Ambient Particle Atmosphere
+    let scene, camera, renderer, particles;
+    function initAtmosphere() {
+      const canvas = document.getElementById('bg-canvas');
+      if (!canvas || typeof THREE === 'undefined') return;
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.z = 10;
+
+      renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      const count = 120;
+      const geo = new THREE.BufferGeometry();
+      const pos = new Float32Array(count * 3);
+      for (let i = 0; i < count * 3; i += 3) {
+        pos[i] = (Math.random() - 0.5) * 25;
+        pos[i + 1] = (Math.random() - 0.5) * 20;
+        pos[i + 2] = (Math.random() - 0.5) * 15;
+      }
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+
+      const mat = new THREE.PointsMaterial({
+        color: 0xff8822,
+        size: 0.12,
+        transparent: true,
+        opacity: 0.65,
+        blending: THREE.AdditiveBlending
+      });
+
+      particles = new THREE.Points(geo, mat);
+      scene.add(particles);
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      function animate() {
+        requestAnimationFrame(animate);
+        if (particles) {
+          particles.rotation.y += 0.0008;
+          particles.rotation.x += 0.0004;
+        }
+        renderer.render(scene, camera);
+      }
+      animate();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      checkExistingSession();
+      initAtmosphere();
+    });
+  </script>
+</body>
+</html>
