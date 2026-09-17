@@ -1,0 +1,17 @@
+﻿# Dependencies & Environment
+node_modules/
+.env
+.env.local
+.env.*.local
+users.json
+*.backup.html
+*.log
+
+# Build outputs
+dist/
+build/
+.vercel
+
+# System files
+.DS_Store
+Thumbs.db
